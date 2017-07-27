@@ -8,18 +8,147 @@ output:
 
 ## Loading and preprocessing the data
 
+We read in the data and add a newdate column so that the dates are in POSIXct.  We will also call all the libraries now.
 
+```{r reading,message=FALSE}
+act <- read.csv("activity.csv")
+act$newdate <- as.POSIXct(strptime(act$date, "%Y-%m-%d"))
+library(ggplot2)
+library(xtable)
+library(stats)
+library(dplyr)
+```
 
 ## What is mean total number of steps taken per day?
+
+First, we create a histogram for each day.  We apply a log transform to the number of steps taken due to the right skew.  Note that this does remove any time that zero steps were taken in.  Since the zero counts are so much more common (in fact, they're more than half of the data, all medians are zero), the histograms with them included don't give us much detail.
+
+```{r hist,cache=TRUE,fig.height=8}
+ggplot(act, aes(log(steps))) + 
+        facet_wrap(~newdate) + 
+        geom_histogram(bins = 8, na.rm = T)
+```
+
+We'll now calculate the mean and median for each day.
+
+```{r calc,results="asis"}
+summact <- act %>% group_by(date) %>% 
+        summarize(mean = mean(steps, na.rm = T), median = median(steps, na.rm = T))
+acttable <- xtable(summact)
+print(acttable, type = "html")
+```
 
 
 
 ## What is the average daily activity pattern?
 
+We start by plotting the number of steps taken (averaged across all days) per interval.
+
+
+```{r fivemins,results="asis",fig.height=4}
+fiveact <- act %>% group_by(interval) %>%
+        summarize(mean = mean(steps, na.rm=T))
+ggplot(fiveact, aes(interval, mean)) + geom_line() +
+        ylab("average steps taken")
+```
+
+The average number of steps peaks somewhere between intervals 750 and 875.  The following code can find the exact interval for us. 
+
+```{r highest}
+high <- max(fiveact$mean)
+fiveact %>% filter(mean == high) %>% collect %>% .[["interval"]]
+```
+
+
 
 
 ## Imputing missing values
 
+There is a lo of missing data.  Let's count up the number of rows with an NA value.  Then, we'll compare them to the total number of obvservations to see what percentage this actually acounts for.
+
+```{r nacount}
+nas <- sum(is.na(act$steps))
+nas
+nas/nrow(act)*100
+```
+
+
+We will now fill in the NA values based on the average number of steps taken for the interval it corresponds to.  Finding the correct average is done by the fillnasteps function.  If a steps value is not NA, our function will just output the steps value.  If steps is NA, the function will output the average number of steps taken for that interval.  
+
+Note that the average was already calculated for the most recent plot so our function will call on that table.  We won't have any ourput here, we'll just store the results from our function in the variable "filled".
+
+
+```{r fillnas,cache=TRUE}
+fillnasteps <- function(x){
+        if(is.na(x[1])){
+                mean <- filter(fiveact, interval == x[2])
+                mean$mean
+        }
+        else{x[1]}
+}
+
+actna <- act %>% select(steps, interval)
+filled <- apply(actna,1,fillnasteps)
+```
+
+
+Now we'll create a new data set, actnew, which will be the same except that the NA values are replaced with their appropriate interval avcerage.
+
+
+```{r actnew}
+actnew <- act
+actnew$steps <- filled
+```
+
+Finally, we'll plot the histograms for each day just like we did before and find the means and medians for each day.  We'll get a warning due to the vast number of zeros and that we removed "na.rm = TRUE" to verify that there are no remaining NA values in steps.
+
+
+```{r histnew,cache=TRUE,fig.height=8,results="asis"}
+ggplot(actnew, aes(log(steps))) + 
+        facet_wrap(~newdate) + 
+        geom_histogram(bins = 8)
+
+summactnew <- actnew %>% group_by(date) %>% 
+        summarize(mean = mean(steps), median = median(steps))
+acttablenew <- xtable(summactnew)
+print(acttablenew, type = "html")
+```
+
+$$ $$
+
+Notes:  
+
+* The table we created much earlier had some missing entries where all step values for that day were NA.  In the original set of histograms, this can be spotted due to the lack of bars.  In the last set of histograms, these days all look identical (each step value replaced with the same average).
+* In the table of values, the means have almost not changed at all, at least for the days that had data.
+* Also, the medians remained zero for all the days that had data.
+* The days that were NA before are much taller since the other days had lots of zero entries.
+
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+First we must classify the weekedns and weekdays in our dates. This will be done by creating a function that determes if a day is on the weekend or not.  If it is, "Weekend" will be the output.  If not, then it is "Weekday".  We'll then loop this through our "newdate" column to create a vector "Day" which will then be added to our table.
+
+```{r days}
+wkends <- c("Sat", "Sun")
+
+wkdayend <- function(x){
+        if(weekdays(x, abbreviate = T) %in% wkends){
+                "Weekend"
+        }
+        else{"Weekday"}
+}
+Day <- sapply(actnew$newdate, wkdayend)
+actnew$Day <- as.factor(Day)
+```
+
+
+
+
+```{r fiveminsnew,results="asis",fig.height=8}
+fiveactnew <- actnew %>% group_by(interval, Day) %>%
+        summarize(mean = mean(steps))
+ggplot(fiveactnew, aes(interval, mean)) + geom_line() +
+        ylab("average steps taken") +
+        facet_grid(Day ~ .)
+```
