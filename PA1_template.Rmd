@@ -21,19 +21,20 @@ library(dplyr)
 
 ## What is mean total number of steps taken per day?
 
-First, we create a histogram for each day.  We apply a log transform to the number of steps taken due to the right skew.  Note that this does remove any time that zero steps were taken in.  Since the zero counts are so much more common (in fact, they're more than half of the data, all medians are zero), the histograms with them included don't give us much detail.
+First, we create a histogram for the daily total.
 
 ```{r hist,cache=TRUE,fig.height=8}
-ggplot(act, aes(log(steps))) + 
-        facet_wrap(~newdate) + 
-        geom_histogram(bins = 8, na.rm = T)
+actsum <- act %>% group_by(date) %>%
+        summarize(total = sum(steps))
+ggplot(actsum, aes(total)) + 
+        geom_histogram(bins = 10, na.rm = T)
 ```
 
-We'll now calculate the mean and median for each day.
+We'll now calculate the mean and median.
 
 ```{r calc,results="asis"}
-summact <- act %>% group_by(date) %>% 
-        summarize(mean = mean(steps, na.rm = T), median = median(steps, na.rm = T))
+summact <- actsum %>% 
+        summarize(mean = mean(total, na.rm = T), median = median(total, na.rm = T))
 acttable <- xtable(summact)
 print(acttable, type = "html")
 ```
@@ -100,16 +101,17 @@ actnew <- act
 actnew$steps <- filled
 ```
 
-Finally, we'll plot the histograms for each day just like we did before and find the means and medians for each day.  We'll get a warning due to the vast number of zeros and that we removed "na.rm = TRUE" to verify that there are no remaining NA values in steps.
+Finally, we'll plot the histograms for the daily totals.
 
 
 ```{r histnew,cache=TRUE,fig.height=8,results="asis"}
-ggplot(actnew, aes(log(steps))) + 
-        facet_wrap(~newdate) + 
-        geom_histogram(bins = 8)
+actnewtotal <- actnew %>% group_by(date) %>%
+        summarize(total = sum(steps))
+ggplot(actnewtotal, aes(total)) + 
+        geom_histogram(bins = 10)
 
-summactnew <- actnew %>% group_by(date) %>% 
-        summarize(mean = mean(steps), median = median(steps))
+summactnew <- actnewtotal %>% 
+        summarize(mean = mean(total), median = median(total))
 acttablenew <- xtable(summactnew)
 print(acttablenew, type = "html")
 ```
@@ -118,11 +120,9 @@ print(acttablenew, type = "html")
 
 Notes:  
 
-* The table we created much earlier had some missing entries where all step values for that day were NA.  In the original set of histograms, this can be spotted due to the lack of bars.  In the last set of histograms, these days all look identical (each step value replaced with the same average).
-* In the table of values, the means have almost not changed at all, at least for the days that had data.
-* Also, the medians remained zero for all the days that had data.
-* The days that were NA before are much taller since the other days had lots of zero entries.
-
+* The means are exactly the same as before.  This makes sense because I replaced NA values with some calculated means.
+* The medians differ so slightly.  There were some days with no input values so all values for that day end up coming out the same which is why our median is no longer an integer (or average of two integers).
+* As mentioned in the previous bullet, the days with all NA values have all the same totals now.  Hence our histograms look quite different with a much taller bin where those days are now located.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
