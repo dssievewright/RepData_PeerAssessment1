@@ -39,7 +39,7 @@ print(acttable, type = "html")
 ```
 
 <!-- html table generated in R 3.4.0 by xtable 1.8-2 package -->
-<!-- Thu Jul 27 16:51:58 2017 -->
+<!-- Thu Jul 27 17:08:41 2017 -->
 <table border=1>
 <tr> <th>  </th> <th> date </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right"> 1 </td> <td> 2012-10-01 </td> <td align="right">  </td> <td align="right">  </td> </tr>
@@ -279,7 +279,7 @@ print(acttablenew, type = "html")
   <tr> <td align="right"> 61 </td> <td> 2012-11-30 </td> <td align="right"> 37.38 </td> <td align="right"> 34.11 </td> </tr>
    </table>
 
-$$ $$
+<br>
 
 Notes:  
 
